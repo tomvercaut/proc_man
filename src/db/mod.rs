@@ -27,7 +27,7 @@ where
     Ok(())
 }
 
-fn init_migration(conn: &Connection) -> crate::Result<()> {
+pub(crate) fn init_migration(conn: &Connection) -> crate::Result<()> {
     debug!("Initializing migration");
     init_version(conn)?;
     migrations::init(conn)?;
