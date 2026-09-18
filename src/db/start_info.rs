@@ -4,6 +4,7 @@ use rusqlite::{Connection, params};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessStartInfo {
     pub process_start_info_id: Option<i64>,
+    pub name: String,
     pub path: String,
     pub args: String,
     pub cwd: String,
@@ -51,7 +52,7 @@ impl ReadByID<ProcessStartInfo> for ProcessStartInfoRepository {
         id: <ProcessStartInfo as Id>::Id,
     ) -> crate::Result<ProcessStartInfo> {
         let sql = r#"
-        SELECT process_start_info_id, path, args, cwd
+        SELECT process_start_info_id, name, path, args, cwd
         FROM process_start_info
         WHERE process_start_info_id = ?
 "#;
@@ -59,9 +60,10 @@ impl ReadByID<ProcessStartInfo> for ProcessStartInfoRepository {
         let row = stmt.query_row([id], |row| {
             Ok(ProcessStartInfo {
                 process_start_info_id: row.get(0)?,
-                path: row.get(1)?,
-                args: row.get(2)?,
-                cwd: row.get(3)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                args: row.get(3)?,
+                cwd: row.get(4)?,
             })
         })?;
         Ok(row)
@@ -75,12 +77,12 @@ impl Update<ProcessStartInfo> for ProcessStartInfoRepository {
         }
         let sql = r#"
 UPDATE process_start_info
-SET path = ?, args = ?, cwd = ?
+SET name = ?, path = ?, args = ?, cwd = ?
 WHERE process_start_info_id = ?
 "#;
         let id = dbo.process_start_info_id.unwrap();
         let mut stmt = conn.prepare(sql)?;
-        stmt.execute(params![&dbo.path, &dbo.args, &dbo.cwd, id])?;
+        stmt.execute(params![&dbo.name, &dbo.path, &dbo.args, &dbo.cwd, id])?;
         Ok(())
     }
 }
@@ -117,6 +119,7 @@ mod tests {
         let conn = setup_test_db();
         let model = ProcessStartInfo {
             process_start_info_id: None,
+            name: "python3".to_string(),
             path: "/usr/bin/python3".to_string(),
             args: "-m http.server 8080".to_string(),
             cwd: "/var/www".to_string(),
@@ -126,6 +129,7 @@ mod tests {
             .expect("Failed to create process start info");
 
         assert_eq!(created.process_start_info_id, Some(1));
+        assert_eq!(created.name, "python3");
         assert_eq!(created.path, "/usr/bin/python3");
         assert_eq!(created.args, "-m http.server 8080");
         assert_eq!(created.cwd, "/var/www");
@@ -136,6 +140,7 @@ mod tests {
         let conn = setup_test_db();
         let model = ProcessStartInfo {
             process_start_info_id: None,
+            name: "rustc".to_string(),
             path: "/usr/bin/rustc".to_string(),
             args: "--version".to_string(),
             cwd: "/home/user".to_string(),
@@ -159,6 +164,7 @@ mod tests {
         let conn = setup_test_db();
         let model = ProcessStartInfo {
             process_start_info_id: None,
+            name: "node".to_string(),
             path: "/usr/bin/node".to_string(),
             args: "index.js".to_string(),
             cwd: "/app".to_string(),
@@ -181,6 +187,7 @@ mod tests {
 
         let without_id = ProcessStartInfo {
             process_start_info_id: None,
+            name: "test".to_string(),
             path: "/usr/bin/test".to_string(),
             args: "".to_string(),
             cwd: "/".to_string(),
@@ -194,6 +201,7 @@ mod tests {
         let conn = setup_test_db();
         let model = ProcessStartInfo {
             process_start_info_id: None,
+            name: "bash".to_string(),
             path: "/usr/bin/bash".to_string(),
             args: "-c 'echo hello'".to_string(),
             cwd: "/tmp".to_string(),

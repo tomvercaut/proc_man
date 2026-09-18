@@ -11,6 +11,7 @@ lazy_static! {
     pub(crate) static ref MIGRATIONS: HashMap<i64, MigrationFn> = {
         let mut m = HashMap::new();
         m.insert(1, v1 as MigrationFn);
+        m.insert(2, v2 as MigrationFn);
         m
     };
 }
@@ -26,6 +27,15 @@ fn v1(conn: &Connection) -> crate::Result<()> {
         [],
     )?;
     set_version(conn, 1)?;
+    Ok(())
+}
+
+fn v2(conn: &Connection) -> crate::Result<()> {
+    conn.execute(
+        r#"ALTER TABLE process_start_info ADD COLUMN name TEXT NOT NULL"#,
+        [],
+    )?;
+    set_version(conn, 2)?;
     Ok(())
 }
 
