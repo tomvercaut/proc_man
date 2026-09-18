@@ -28,3 +28,7 @@ where
 {
     fn delete(conn: &Connection, id: Dbo::Id) -> crate::Result<Dbo>;
 }
+
+pub trait ListAll<Dbo> {
+    fn list_all(conn: &Connection) -> crate::Result<Vec<Dbo>>;
+}

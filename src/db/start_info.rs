@@ -1,4 +1,4 @@
-use crate::db::traits::{Create, Delete, Id, ReadByID, Update};
+use crate::db::traits::{Create, Delete, Id, ListAll, ReadByID, Update};
 use rusqlite::{Connection, params};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,13 +34,13 @@ impl Create<ProcessStartInfo> for ProcessStartInfoRepository {
         Self: Sized,
     {
         let sql = r#"
-        INSERT INTO process_start_info (path, args, cwd)
-        VALUES (?, ?, ?)
+        INSERT INTO process_start_info (name, path, args, cwd)
+        VALUES (?, ?, ?, ?)
         RETURNING process_start_info_id
 "#;
         let mut model = model;
         let mut stmt = conn.prepare(sql)?;
-        let id: i64 = stmt.query_row([&model.path, &model.args, &model.cwd], |row| row.get(0))?;
+        let id: i64 = stmt.query_row([&model.name, &model.path, &model.args, &model.cwd], |row| row.get(0))?;
         model.process_start_info_id = Some(id);
         Ok(model)
     }
@@ -101,6 +101,30 @@ impl Delete<ProcessStartInfo> for ProcessStartInfoRepository {
         stmt.execute([id])?;
         to_delete.clear_id();
         Ok(to_delete)
+    }
+}
+
+impl ListAll<ProcessStartInfo> for ProcessStartInfoRepository {
+    fn list_all(conn: &Connection) -> crate::Result<Vec<ProcessStartInfo>> {
+        let sql = r#"
+        SELECT process_start_info_id, name, path, args, cwd
+        FROM process_start_info
+        "#;
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ProcessStartInfo {
+                process_start_info_id: row.get(0)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                args: row.get(3)?,
+                cwd: row.get(4)?,
+            })
+        })?;
+        let mut v = Vec::new();
+        for row in rows {
+            v.push(row?);
+        }
+        Ok(v)
     }
 }
 
@@ -224,5 +248,47 @@ mod tests {
 
         let delete_non_existent = ProcessStartInfoRepository::delete(&conn, 9999);
         assert!(delete_non_existent.is_err());
+    }
+
+    #[test]
+    fn test_list_all() {
+        let conn = setup_test_db();
+
+        let initial_list = ProcessStartInfoRepository::list_all(&conn)
+            .expect("Failed to list all process start info on empty db");
+        assert!(initial_list.is_empty());
+
+        let model1 = ProcessStartInfo {
+            process_start_info_id: None,
+            name: "python3".to_string(),
+            path: "/usr/bin/python3".to_string(),
+            args: "-m http.server 8080".to_string(),
+            cwd: "/var/www".to_string(),
+        };
+        let model2 = ProcessStartInfo {
+            process_start_info_id: None,
+            name: "rustc".to_string(),
+            path: "/usr/bin/rustc".to_string(),
+            args: "--version".to_string(),
+            cwd: "/home/user".to_string(),
+        };
+
+        let created1 = ProcessStartInfoRepository::create(&conn, model1)
+            .expect("Failed to create process start info 1");
+        let created2 = ProcessStartInfoRepository::create(&conn, model2)
+            .expect("Failed to create process start info 2");
+
+        let list = ProcessStartInfoRepository::list_all(&conn)
+            .expect("Failed to list all process start info");
+        assert_eq!(list.len(), 2);
+        assert_eq!(list, vec![created1.clone(), created2.clone()]);
+
+        ProcessStartInfoRepository::delete(&conn, created1.id())
+            .expect("Failed to delete process start info 1");
+
+        let list_after_delete = ProcessStartInfoRepository::list_all(&conn)
+            .expect("Failed to list all process start info after delete");
+        assert_eq!(list_after_delete.len(), 1);
+        assert_eq!(list_after_delete, vec![created2]);
     }
 }
