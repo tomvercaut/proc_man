@@ -2,8 +2,11 @@ use rusqlite::Connection;
 use tracing::debug;
 
 mod migrations;
-pub mod start_info;
-pub mod traits;
+mod start_info;
+mod traits;
+
+pub use start_info::*;
+pub use traits::*;
 
 pub fn connect<P>(path: P) -> crate::Result<Connection>
 where

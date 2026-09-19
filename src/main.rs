@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use proc_man::{db, default_db_path};
+use std::io::Write;
 use tracing::debug;
 use tracing_subscriber::EnvFilter;
+use proc_man::db::{Create, ListAll};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
@@ -92,10 +94,50 @@ fn main() -> anyhow::Result<()> {
                     db::init(&db_path)?;
                 }
                 DbCommands::Add => {
-                    debug!("DUMMY Adding process to database");
+                    let db_path = default_db_path()?;
+                    let conn = db::connect(&db_path)?;
+
+                    print!("Name: ");
+                    std::io::stdout().flush()?;
+                    let mut name = String::new();
+                    std::io::stdin().read_line(&mut name)?;
+
+                    print!("Path: ");
+                    std::io::stdout().flush()?;
+                    let mut path = String::new();
+                    std::io::stdin().read_line(&mut path)?;
+
+                    print!("Args: ");
+                    std::io::stdout().flush()?;
+                    let mut args = String::new();
+                    std::io::stdin().read_line(&mut args)?;
+
+                    print!("Working dir: ");
+                    std::io::stdout().flush()?;
+                    let mut cwd = String::new();
+                    std::io::stdin().read_line(&mut cwd)?;
+
+                    let process = db::ProcessStartInfo {
+                        process_start_info_id: None,
+                        name: name.trim().to_string(),
+                        path: path.trim().to_string(),
+                        args: args.trim().to_string(),
+                        cwd: cwd.trim().to_string(),
+                    };
+
+                    let _ = db::ProcessStartInfoRepository::create(&conn, process)?;
                 }
                 DbCommands::List => {
-                    debug!("DUMMY Listing processes in database");
+                    let db_path = default_db_path()?;
+                    let conn = db::connect(&db_path)?;
+                    let processes = db::ProcessStartInfoRepository::list_all(&conn)?;
+                    for process in processes {
+                        println!("Name: {}", process.name);
+                        println!("  path: {}", process.path);
+                        println!("  args: {}", process.args);
+                        println!("  working dir: {}", process.cwd);
+                        println!();
+                    }
                 }
                 DbCommands::Remove { name } => {
                     debug!("DUMMY Removing process ({}) from database", name);
